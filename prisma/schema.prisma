@@ -1,0 +1,116 @@
+//* @authors Ben Pritchard, Tom Whitticase
+//*
+//* @description This file contains the schema for the database. The database is generated using this schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+//generate the ERD diagram
+generator erd {
+  provider = "prisma-erd-generator"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  userId           String           @id @unique
+  name             String
+  password         String
+  role             Role             @default(EMPLOYEE)
+  profileImage     String? @db.VarChar(500)
+  documents        Document[]
+  tasks            Task[]         
+  projectsLeading  Project[]        @relation("projectLeader")
+  notifications    Notification[]
+  projectsAssigned UserOnProjects[]
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+model Project {
+  id          Int              @id @default(autoincrement())
+  name        String
+  description String
+  tasks       Task[]
+  leaderId    String
+  leader      User             @relation("projectLeader", fields: [leaderId], references: [userId], onDelete: Cascade)
+  userOnProjects       UserOnProjects[]       
+}
+
+model UserOnProjects {
+  user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  userId     String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  Int
+  assignedAt DateTime @default(now())
+  assignedBy String
+
+  @@id([userId, projectId])
+}
+
+model Task {
+  id          Int      @id @unique @default(autoincrement())
+  name        String
+  description String
+  manHours    Int
+  deadline    DateTime
+  status      Status   @default(TODO)
+  assigneeId  String   
+  assignee    User     @relation(fields: [assigneeId], references: [userId], onDelete: Cascade)
+  projectId   Int?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  archived    Boolean  @default(false)
+  subTasks    Json
+}
+
+enum Status {
+  TODO
+  INPROGRESS
+  REVIEW
+  COMPLETED
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  title       String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Seen        Boolean
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  category  Category
+  topic     String
+  body      Bytes
+  title     String
+  author    User     @relation(fields: [authorId], references: [userId], onDelete: Cascade)
+  authorId  String
+}
+
+enum Category {
+  TECHNICAL
+  NONTECHNICAL
+}
+
+model Referral {
+  code      String   @id
+  createdAt DateTime @default(now())
+}
